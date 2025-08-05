@@ -1,0 +1,111 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+@layer base {
+  :root {
+    /* Ant Design inspired color palette */
+    --background: 0 0% 100%; /* Pure white */
+    --foreground: 0 0% 14%; /* Dark text - #262626 */
+
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 0 0% 14%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 14%;
+
+    --primary: 215 100% 59%; /* Ant Design blue - #1677ff */
+    --primary-foreground: 0 0% 100%; /* White text on blue */
+
+    --secondary: 220 14% 96%; /* Light gray - #f5f5f5 */
+    --secondary-foreground: 0 0% 25%; /* Dark gray text */
+
+    --muted: 220 14% 96%; /* Light background */
+    --muted-foreground: 0 0% 45%; /* Muted text - #737373 */
+
+    --accent: 213 100% 97%; /* Very light blue - #f0f5ff */
+    --accent-foreground: 215 100% 59%; /* Primary blue text */
+
+    --destructive: 0 84% 60%; /* Red for errors - #ff4d4f */
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%; /* Light border - #e8e8e8 */
+    --input: 220 13% 91%; /* Input border */
+    --ring: 215 100% 59%; /* Focus ring - matches primary */
+
+    /* Chart colors using Ant Design palette */
+    --chart-1: 215 100% 59%; /* Primary blue */
+    --chart-2: 183 100% 42%; /* Cyan - #00b8d4 */
+    --chart-3: 142 71% 45%; /* Green - #52c41a */
+    --chart-4: 45 100% 51%; /* Gold - #faad14 */
+    --chart-5: 348 83% 64%; /* Magenta - #eb2f96 */
+
+    /* Sidebar colors */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 0 0% 14%;
+    --sidebar-primary: 215 100% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 213 100% 97%;
+    --sidebar-accent-foreground: 215 100% 59%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 215 100% 59%;
+
+    /* Border radius - Ant Design uses 6px as default */
+    --radius: 6px;
+  }
+
+  /* Dark mode (optional) */
+  .dark {
+    --background: 0 0% 8%; /* Very dark background */
+    --foreground: 0 0% 95%; /* Light text */
+
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+
+    --primary: 215 100% 59%; /* Keep the same blue */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 0 0% 15%; /* Dark gray */
+    --secondary-foreground: 0 0% 85%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 65%;
+
+    --accent: 215 33% 15%; /* Dark blue accent */
+    --accent-foreground: 215 100% 75%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 20%;
+    --input: 0 0% 20%;
+    --ring: 215 100% 59%;
+
+    --sidebar-background: 0 0% 8%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 215 100% 59%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 33% 15%;
+    --sidebar-accent-foreground: 215 100% 75%;
+    --sidebar-border: 0 0% 20%;
+    --sidebar-ring: 215 100% 59%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
