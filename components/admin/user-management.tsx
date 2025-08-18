@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -31,31 +31,17 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Trash2, Edit, Plus, Eye, EyeOff } from 'lucide-react';
-import type { User } from '@/lib/models';
+import type { User } from '@/lib/models/server';
+import { toast } from 'sonner';
+import { io, type Socket } from 'socket.io-client';
 
 export default function UserManagement() {
-  const [users, setUsers] = useState<
-    {
-      _id?: string;
-      username: string;
-      password: string;
-      role: 'admin' | 'user';
-      isOnline: boolean;
-      lastSeen: Date;
-      createdAt: Date;
-    }[]
-  >([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [editingUser, setEditingUser] = useState<{
-    _id?: string;
-    username: string;
-    password: string;
-    role: 'admin' | 'user';
-    isOnline: boolean;
-    lastSeen: Date;
-    createdAt: Date;
-  } | null>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [presence, setPresence] = useState<Record<string, boolean>>({});
+  const [socket, setSocket] = useState<Socket | null>(null);
   const [showPasswords, setShowPasswords] = useState<{
     [key: string]: boolean;
   }>({});
@@ -70,19 +56,40 @@ export default function UserManagement() {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const s = io();
+    setSocket(s);
+
+    // Request full presence snapshot
+    s.emit('get-presence');
+
+    s.on('presence-state', ({ userIds }: { userIds: string[] }) => {
+      setPresence(() => {
+        const next: Record<string, boolean> = {};
+        for (const id of userIds) next[id] = true;
+        return next;
+      });
+    });
+
+    s.on(
+      'user-status-change',
+      ({ userId, isOnline }: { userId: string; isOnline: boolean }) => {
+        setPresence(prev => ({ ...prev, [userId]: isOnline }));
+      }
+    );
+
+    return () => {
+      s.disconnect();
+    };
+  }, []);
+
   const fetchUsers = async () => {
     try {
-      setUsers([
-        {
-          _id: 'fasdf',
-          createdAt: new Date(),
-          isOnline: false,
-          lastSeen: new Date(new Date().setHours(4)),
-          password: 'passwrd',
-          role: 'admin',
-          username: 'admin'
-        }
-      ]);
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data);
+      }
     } catch (error) {
       console.error('Error fetching users:', error);
     } finally {
@@ -92,17 +99,70 @@ export default function UserManagement() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+        toast.success('User created successfully!');
+        setShowCreateDialog(false);
+        setFormData({ username: '', password: '', role: 'user' });
+      }
+    } catch (error: any) {
+      toast.error('Error creating user!', {
+        description: error.message || 'Something went wrong!'
+      });
+      console.error('Error creating user:', error);
+    }
   };
 
   const handleUpdateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;
-    setEditingUser(null);
-    setFormData({ username: '', password: '', role: 'user' });
+
+    try {
+      const response = await fetch(`/api/admin/users/${editingUser._id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
+
+      if (response.ok) {
+        await fetchUsers();
+        toast.success('User updated successfully!');
+        setEditingUser(null);
+        setFormData({ username: '', password: '', role: 'user' });
+      }
+    } catch (error: any) {
+      toast.error('Error updating user!', {
+        description: error.message || 'Something went wrong!'
+      });
+      console.error('Error updating user:', error);
+    }
   };
 
   const handleDeleteUser = async (userId: string) => {
     if (!confirm('Are you sure you want to delete this user?')) return;
+
+    try {
+      const response = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE'
+      });
+
+      if (response.ok) {
+        toast.success('User deleted successfully!');
+        await fetchUsers();
+      }
+    } catch (error: any) {
+      toast.error('Error deleting user!', {
+        description: error.message || 'Something went wrong!'
+      });
+      console.error('Error deleting user:', error);
+    }
   };
 
   const togglePasswordVisibility = (userId: string) => {
@@ -112,6 +172,15 @@ export default function UserManagement() {
     }));
   };
 
+  const onlineCount = useMemo(
+    () =>
+      users.reduce((acc, u) => {
+        const id = (u as any)._id?.toString?.() || '';
+        return acc + (presence[id] ? 1 : 0);
+      }, 0),
+    [users, presence]
+  );
+
   if (loading) {
     return <div className="flex justify-center p-8">Loading...</div>;
   }
@@ -119,7 +188,12 @@ export default function UserManagement() {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle>User Management</CardTitle>
+        <div>
+          <CardTitle>User Management</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Online: {onlineCount} / {users.length}
+          </p>
+        </div>
         <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
           <DialogTrigger asChild>
             <Button>
@@ -193,75 +267,78 @@ export default function UserManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map(user => (
-                <TableRow key={user._id?.toString()}>
-                  <TableCell className="font-mono text-xs">
-                    {user._id?.toString().slice(-8)}
-                  </TableCell>
-                  <TableCell>{user.username}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-xs">
-                        {showPasswords[user._id?.toString() || '']
-                          ? user.password
-                          : '••••••••••••••••••••'}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                          togglePasswordVisibility(user._id?.toString() || '')
+              {users.map(user => {
+                const uid = (user as any)._id?.toString?.() || '';
+                const isOnline = !!presence[uid];
+
+                return (
+                  <TableRow key={uid}>
+                    <TableCell className="font-mono text-xs">
+                      {uid.slice(-8)}
+                    </TableCell>
+                    <TableCell>{user.username}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs">
+                          {showPasswords[uid || '']
+                            ? user.password
+                            : '••••••••••••••••••••'}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => togglePasswordVisibility(uid || '')}
+                        >
+                          {showPasswords[uid || ''] ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          user.role === 'admin' ? 'default' : 'secondary'
                         }
                       >
-                        {showPasswords[user._id?.toString() || ''] ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={user.role === 'admin' ? 'default' : 'secondary'}
-                    >
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={user.isOnline ? 'default' : 'secondary'}>
-                      {user.isOnline ? 'Online' : 'Offline'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditingUser(user);
-                          setFormData({
-                            username: user.username,
-                            password: '',
-                            role: user.role
-                          });
-                        }}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() =>
-                          handleDeleteUser(user._id?.toString() || '')
-                        }
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={isOnline ? 'default' : 'secondary'}>
+                        {isOnline ? 'Online' : 'Offline'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setEditingUser(user);
+                            setFormData({
+                              username: user.username,
+                              password: '',
+                              role: user.role
+                            });
+                          }}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => handleDeleteUser(uid || '')}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </div>

@@ -1,11 +1,8 @@
 import { MongoClient } from 'mongodb';
-import { config } from 'dotenv';
-
-config();
 const uri = process.env.MONGODB_URI || 'mongodb://localhost:27017';
 const client = new MongoClient(uri);
 
-async function initializeDatabase() {
+export async function initializeDatabase() {
   try {
     await client.connect();
     console.log('Connected to MongoDB');
@@ -13,7 +10,7 @@ async function initializeDatabase() {
     const db = client.db('chatSystem');
 
     const found = await db.collection('users').findOne({ username: 'admin' });
-    if (found._id) {
+    if (found?._id) {
       console.log('Database already initialized');
       return await client.close();
     }
@@ -26,8 +23,12 @@ async function initializeDatabase() {
 
     // Create indexes
     await db.collection('users').createIndex({ username: 1 }, { unique: true });
+
+    await db.collection('messages').createIndex({ chatId: 1, timestamp: -1 });
+    await db
+      .collection('messages')
+      .createIndex({ chatId: 1, sender: 1, 'readBy.userId': 1 });
     await db.collection('chats').createIndex({ participants: 1 });
-    await db.collection('messages').createIndex({ chatId: 1, timestamp: 1 });
 
     // Create default admin user
     const password = 'admin123';
@@ -35,7 +36,6 @@ async function initializeDatabase() {
       username: 'admin',
       password: password,
       role: 'admin',
-      isOnline: false,
       lastSeen: new Date(),
       createdAt: new Date()
     });
@@ -57,5 +57,3 @@ async function initializeDatabase() {
     await client.close();
   }
 }
-
-initializeDatabase();

@@ -1,10 +1,39 @@
 import type { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import { getDatabase } from './mongodb';
-import type { User } from './models';
+import type { ReplaceObjectId, User } from './models/client';
+import type { User as UserServer } from './models/server';
 import { ObjectId } from 'mongodb';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+
+function convertServerToClient<T>(data: T): ReplaceObjectId<T> {
+  if (data === null || data === undefined) {
+    return data as any;
+  }
+
+  if (data instanceof ObjectId) {
+    return data.toString() as any;
+  }
+
+  if (data instanceof Date) {
+    return data.toISOString() as any;
+  }
+
+  if (Array.isArray(data)) {
+    return data.map(item => convertServerToClient(item)) as any;
+  }
+
+  if (typeof data === 'object') {
+    const converted: any = {};
+    for (const [key, value] of Object.entries(data)) {
+      converted[key] = convertServerToClient(value);
+    }
+    return converted;
+  }
+
+  return data as any;
+}
 
 export async function verifyPassword(
   password: string,
@@ -50,10 +79,9 @@ export async function getCurrentUser(
 
     const db = await getDatabase();
     const user = await db
-      .collection<User>('users')
+      .collection<UserServer>('users')
       .findOne({ _id: new ObjectId(decoded.userId) });
-    console.log('from server', user);
-    return JSON.parse(JSON.stringify(user));
+    return user ? convertServerToClient(user) : null;
   } catch {
     return null;
   }

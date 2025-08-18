@@ -23,13 +23,34 @@ export default function LoginForm() {
     setLoading(true);
     setError('');
 
-    router.push('/admin');
-    setLoading(false);
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.user.role === 'admin') {
+          router.push('/admin');
+        } else {
+          router.push('/chat');
+        }
+      } else {
+        setError(data.error || 'Login failed');
+      }
+    } catch (error) {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md shadow-2xl">
         <CardHeader className="text-center">
           <CardTitle className="text-2xl font-bold flex flex-col items-center justify-center gap-4">
             <Image

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getDatabase } from '@/lib/mongodb';
 import { verifyPassword, generateToken } from '@/lib/auth';
-import type { User } from '@/lib/models';
+import type { User } from '@/lib/models/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,14 +17,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Update user online status
-    await db
-      .collection('users')
-      .updateOne(
-        { _id: user._id },
-        { $set: { isOnline: true, lastSeen: new Date() } }
-      );
-
     const token = generateToken(user._id!.toString(), user.role);
 
     const response = NextResponse.json({
@@ -37,8 +29,10 @@ export async function POST(request: NextRequest) {
 
     response.cookies.set('token', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure:
+        process.env.NODE_ENV === 'production' &&
+        process.env.USE_HTTPS === 'true',
+      sameSite: 'lax',
       maxAge: 9 * 60 * 60 // 9 hours
     });
 

@@ -1,21 +1,7 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { getCurrentUser } from '@/lib/auth';
-import { getDatabase } from '@/lib/mongodb';
+import { NextResponse } from 'next/server';
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    const user = await getCurrentUser(request);
-
-    if (user) {
-      const db = await getDatabase();
-      await db
-        .collection('users')
-        .updateOne(
-          { _id: user._id },
-          { $set: { isOnline: false, lastSeen: new Date() } }
-        );
-    }
-
     const response = NextResponse.json({ success: true });
     response.cookies.set({
       name: 'token',

@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import ChatInterface from '@/components/chat/chat-interface';
 import { LogoutButton } from '@/components/logout';
 import { getCurrentUser } from '@/lib/auth';
+import { Header } from '@/components/header';
 
 export default async function ChatPage() {
   const cookieStore = cookies();
@@ -16,13 +17,11 @@ export default async function ChatPage() {
 
   return (
     <div className="h-screen flex flex-col">
-      <header className="bg-white border-b px-4 py-2 flex justify-between items-center">
-        <h1 className="text-xl font-semibold">Chat System</h1>
-        <LogoutButton />
-      </header>
-      <div className="flex-1">
+      <Header />
+      {/* THIS is the fix: Use flex-1, not h-full or overflow-scroll */}
+      <main className="flex-1 overflow-hidden">
         <ChatInterface currentUser={currentUser} />
-      </div>
+      </main>
     </div>
   );
 }

@@ -1,7 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { getDatabase } from '@/lib/mongodb';
-import type { User } from '@/lib/models';
+import type { User } from '@/lib/models/server';
+import { ObjectId } from 'mongodb';
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
       .collection<User>('users')
       .find({
         _id: {
-          $ne: currentUser._id
+          $ne: new ObjectId(currentUser._id)
         }
       })
       .toArray();
@@ -54,7 +55,6 @@ export async function POST(request: NextRequest) {
       username,
       password,
       role: role || 'user',
-      isOnline: false,
       lastSeen: new Date(),
       createdAt: new Date()
     };
